@@ -10,7 +10,6 @@ Clone the repository and run the setup script. It will install all system and Py
 
 ```bash
 git clone <repo-url>
-cd chamlon
 chmod +x setup.sh
 ./setup.sh
 ```
