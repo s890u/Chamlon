@@ -4,6 +4,21 @@ A lightweight, encrypted VPN built from scratch in C and Python. Chamlon tunnels
 
 ---
 
+## Installation
+
+Clone the repository and run the setup script. It will install all system and Python dependencies, then compile both the server and client:
+
+```bash
+git clone <repo-url>
+cd chamlon
+chmod +x setup.sh
+./setup.sh
+```
+
+This installs `libsodium`, builds `chamlon_server` and `chamlon_client` via `make`, and installs the Python GUI dependencies.
+
+---
+
 ## Project Structure
 
 ```
@@ -81,21 +96,6 @@ Once the session is established:
 - `sudo` / root privileges (required for TUN interface and iptables)
 - `libsodium-dev`
 - `python3`, `pip3`, `PyQt5`
-
----
-
-## Installation
-
-Clone the repository and run the setup script. It will install all system and Python dependencies, then compile both the server and client:
-
-```bash
-git clone <repo-url>
-cd chamlon
-chmod +x setup.sh
-./setup.sh
-```
-
-This installs `libsodium`, builds `chamlon_server` and `chamlon_client` via `make`, and installs the Python GUI dependencies.
 
 ---
 
