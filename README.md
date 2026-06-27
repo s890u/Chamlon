@@ -156,7 +156,6 @@ Core parameters are defined at compile time in `chamlon_server/include/config.h`
 ## Security Notes
 
 - The server's long-term identity key is stored in `server_static.key` (auto-generated on first run). **Keep this file private.**
-- The NAT output interface is currently hardcoded in `tun.c`. If your server's public interface is not `enp0s3`, edit `setup_nat()` accordingly before building.
 - Chamlon uses only [libsodium](https://libsodium.org) for all cryptographic operations.
 
 ---
