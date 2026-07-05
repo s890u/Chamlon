@@ -4,7 +4,7 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 echo "==> Installing system dependencies (requires sudo)..."
-pkexec bash -c "
+sudo bash -c "
     apt-get update -y &&
     apt-get install -y \
         make \
