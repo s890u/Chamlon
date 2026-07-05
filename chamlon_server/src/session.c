@@ -9,6 +9,7 @@
 #include "session.h"
 #include "packet.h"
 #include "metrics.h"
+#include "scheduler.h"
 
 session_t        sessions[MAX_CLIENTS];
 
