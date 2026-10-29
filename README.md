@@ -4,17 +4,58 @@ A lightweight, encrypted VPN built from scratch in C and Python. Chamlon tunnels
 
 ---
 
+## The Client
+
+The graphical client is a single 405x720 window: a connection page, a settings
+page for everything the command-line client takes as arguments, and a live
+metrics page.
+
+| Home | Settings | Metrics |
+|---|---|---|
+| ![The connection page](docs/images/gui-home.png) | ![The settings page](docs/images/gui-settings.png) | ![The metrics page](docs/images/gui-metrics.png) |
+
+Enter the server's address and port on the home page, paste the server's public
+key into the settings page, and press connect.
+
+---
+
 ## Installation
 
-Clone the repository and run the setup script. It will install all system and Python dependencies, then compile both the server and client:
+One command, on any Ubuntu or Debian release:
 
 ```bash
-git clone <repo-url>
-chmod +x setup.sh
+git clone <repo-url> && cd Chamlon
 ./setup.sh
 ```
 
-This installs `libsodium`, builds `chamlon_server` and `chamlon_client` via `make`, and installs the Python GUI dependencies.
+It asks for your password once, then installs the compiler and libsodium,
+installs the GUI's Python dependencies, and builds both binaries. It is safe to
+re-run at any time: every step checks what is already present before touching
+anything.
+
+Written for Ubuntu 20.04 through 25.04 and Debian 11 and 12 (the package
+names that were renamed between those releases are all handled); verified
+end to end on Ubuntu 24.04.
+
+```bash
+./setup.sh --build-only   # just rebuild the binaries, install nothing
+./setup.sh --no-gui       # server and command-line client only
+```
+
+The installer deliberately takes PyQt5, OpenCV and pyqtgraph from the
+distribution's own packages rather than from pip. Two copies of Qt in one
+process is what produces the familiar `could not load the Qt platform plugin
+"xcb"` crash, and a pip install is what puts the second copy there. pip is used
+only as a fallback, for a module the distribution does not ship.
+
+### If something goes wrong
+
+| What you see | What it means |
+|---|---|
+| `another package manager is running` | Ubuntu's unattended-upgrades holds the dpkg lock. The installer waits for it; nothing to do. |
+| `could not install: ...` | Run `sudo apt-get update` and look at what it reports: usually a third-party repository that no longer resolves. |
+| `/dev/net/tun is missing` | `sudo modprobe tun`. In a container, the TUN device has to be passed in. |
+| `no graphical session` from `./chamlon` | You are on a text console or an SSH session without X forwarding. Use `ssh -X`, or the command-line client. |
 
 ---
 
@@ -25,7 +66,8 @@ chamlon/
 ├── chamlon_server/       # VPN server (C)
 ├── chamlon_client/       # VPN client (C)
 ├── chamlon_utilities/    # Shared utilities
-├── chamlon.py            # Graphical client launcher (PyQt5)
+├── chamlon.py            # Graphical client (PyQt5)
+├── chamlon               # Launcher for the GUI: handles root and the display
 └── setup.sh              # One-shot installer and builder
 ```
 
@@ -91,10 +133,15 @@ Once the session is established:
 
 ## Requirements
 
-- Linux (tested on Ubuntu/Debian)
-- `sudo` / root privileges (required for TUN interface and iptables)
-- `libsodium-dev`
-- `python3`, `pip3`, `PyQt5`
+- Linux: Chamlon uses TUN devices and iptables, so Windows needs WSL2 and
+  macOS a virtual machine
+- root, for the TUN interface and the NAT rules
+- `build-essential` and `libsodium-dev` to build
+- `python3`, `python3-pyqt5`, `python3-pyqt5.qtmultimedia`, `python3-opencv`,
+  `python3-pyqtgraph`, `python3-requests` for the GUI
+
+`./setup.sh` installs all of it; the list is here for anyone packaging Chamlon
+by hand.
 
 ---
 
@@ -104,10 +151,10 @@ The server requires root to manage the TUN interface and iptables NAT rules.
 
 ```bash
 cd chamlon_server
-sudo ./chamlon_server <bind-ip> <port>
+sudo ./vpn_server <bind-ip> <port>
 
 # Example: listen on all interfaces, port 55555
-sudo ./chamlon_server 0.0.0.0 55555
+sudo ./vpn_server 0.0.0.0 55555
 ```
 
 On startup, the server will print its **Ed25519 public key**. Copy this since clients need it to verify the server's identity.
@@ -119,19 +166,27 @@ On startup, the server will print its **Ed25519 public key**. Copy this since cl
 ### Graphical interface
 
 ```bash
-sudo python3 chamlon.py
+./chamlon
 ```
 
-Enter the server's IP, port, and public key in the GUI to connect.
+Enter the server's IP, port and public key in the GUI to connect.
+
+The client opens a TUN device and rewrites the routing table, so it runs as
+root. The `./chamlon` wrapper is what arranges that: `sudo` strips `DISPLAY`
+and `XAUTHORITY`, X11 refuses a connection from another user until it is
+allowed in, and under Wayland a root process has no Wayland socket at all and
+has to go through XWayland. The wrapper sets all three up and puts them back
+afterwards. Running `sudo python3 chamlon.py` by hand works on some desktops
+and fails on others for exactly these reasons.
 
 ### Command-line client
 
 ```bash
 cd chamlon_client
-sudo ./chamlon_client <server-ip> <port> <server-public-key> [options]
+sudo ./vpn_client <server-ip> <port> <server-public-key> [options]
 
 # Example: listen on all interfaces, port 55555
-sudo ./chamlon_client <server-ip> <port> <server-public-key> MBPS:5 FRAG:Y:900 CBR:N PAD:Y REHANDSHAKE:120 TUN:interface_client
+sudo ./vpn_client <server-ip> <port> <server-public-key> MBPS:5 FRAG:Y:900 CBR:N PAD:Y REHANDSHAKE:120 TUN:interface_client
 
 ```
 

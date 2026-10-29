@@ -13,6 +13,17 @@ from PyQt5.QtGui import QMovie, QImage, QPixmap, QFontDatabase, QFont, QColor
 from PyQt5.QtMultimediaWidgets import QVideoWidget
 from requests import options
 
+# Every asset and the client binary are found relative to this file, not to
+# the current directory: the GUI has to work the same whether it is started
+# from the project directory, from a launcher, or from a .desktop entry.
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
+
+def asset(*parts):
+    """Absolute path to a file shipped with the project."""
+    return os.path.join(BASE_DIR, *parts)
+
+
 class AnimatedStackedWidget(QStackedWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -373,8 +384,8 @@ class CustomTitleBar(QWidget):
         layout.setContentsMargins(10, 0, 10, 0)
 
         self.logo_label = QLabel()
-        if os.path.exists("chamlon_utilities/logo.gif"):
-            self.logo_movie = QMovie("chamlon_utilities/logo.gif")
+        if os.path.exists(asset("chamlon_utilities", "logo.gif")):
+            self.logo_movie = QMovie(asset("chamlon_utilities", "logo.gif"))
             self.logo_label.setMovie(self.logo_movie)
             self.logo_movie.start()
         else:
@@ -481,7 +492,7 @@ class ConnectionPage(QWidget):
         layout.setSpacing(15)
         layout.setContentsMargins(40, 260, 40, 20)
 
-        logo_video_path = "chamlon_utilities/text_logo_bw.mp4"
+        logo_video_path = asset("chamlon_utilities", "text_logo_bw.mp4")
         LOGO_W, LOGO_H = 400, 240
         if os.path.exists(logo_video_path):
             self.logo_overlay = TransparentVideoLogo(
@@ -1253,7 +1264,7 @@ class MainWindow(QMainWindow):
         self.setCentralWidget(self.central)
         self.central.setStyleSheet("background: transparent;")
 
-        bg_path = "chamlon_utilities/background.mp4"
+        bg_path = asset("chamlon_utilities", "background.mp4")
         if os.path.exists(bg_path):
             self.bg_widget = FrameVideoBackground(bg_path, self.central)
             self.bg_widget.setGeometry(0, 0, WIDTH, HEIGHT)
@@ -1307,7 +1318,7 @@ class MainWindow(QMainWindow):
             self.bg_widget.setGeometry(0, 0, self.width(), self.height())
         super().resizeEvent(event)
 
-    VPN_BINARY = "chamlon_client/vpn_client"
+    VPN_BINARY = asset("chamlon_client", "vpn_client")
 
     def _wire_connection(self):
         conn_page = self.pages.widget(1)
@@ -1522,7 +1533,7 @@ class MainWindow(QMainWindow):
 family = "Arial"
 if __name__ == "__main__":
     app = QApplication(sys.argv)
-    font_id = QFontDatabase.addApplicationFont("chamlon_utilities/geist-sans-latin-200-normal.ttf")
+    font_id = QFontDatabase.addApplicationFont(asset("chamlon_utilities", "geist-sans-latin-200-normal.ttf"))
     if font_id < 0:
         print("Failed to load font, using default")
     else:

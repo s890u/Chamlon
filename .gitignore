@@ -1,0 +1,5 @@
+chamlon_client/vpn_client
+chamlon_server/vpn_server
+__pycache__/
+*.pyc
+server_static.key

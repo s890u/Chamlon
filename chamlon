@@ -1,0 +1,61 @@
+#!/usr/bin/env bash
+#
+# Starts the Chamlon GUI.
+#
+# The client has to open a TUN device and rewrite the routing table, so the
+# GUI runs as root. Getting a root Qt process onto the desktop session of an
+# ordinary user is the fiddly part, and the reason this wrapper exists:
+#
+#   * sudo clears DISPLAY and XAUTHORITY, so Qt finds no display and exits
+#     with "could not connect to display";
+#   * X11 rejects a connection from another user unless it has been let in,
+#     which is what the xhost call below does (and undoes afterwards);
+#   * under Wayland there is no root Wayland socket at all, so the app has to
+#     be told to go through XWayland instead.
+#
+# Run it from anywhere: ./chamlon, or from a desktop entry.
+#
+set -Eeuo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "$SCRIPT_DIR"
+
+die() { printf 'chamlon: %s\n' "$*" >&2; exit 1; }
+
+[ -f chamlon.py ] || die "chamlon.py is not next to this script"
+if [ ! -x chamlon_client/vpn_client ]; then
+    die "the client has not been built yet. Run ./setup.sh first."
+fi
+python3 -c 'import PyQt5, cv2' 2>/dev/null \
+    || die "the GUI's Python dependencies are missing. Run ./setup.sh first."
+
+# Already root: nothing to arrange, the environment is whatever the caller set.
+if [ "$(id -u)" -eq 0 ]; then
+    exec python3 chamlon.py "$@"
+fi
+
+if [ -z "${DISPLAY:-}" ] && [ -z "${WAYLAND_DISPLAY:-}" ]; then
+    die "no graphical session (DISPLAY and WAYLAND_DISPLAY are both unset). Over SSH, connect with -X; otherwise use the command-line client in chamlon_client/."
+fi
+
+# Under Wayland, go through XWayland: a root process cannot open the user's
+# Wayland socket, but the X11 bridge accepts it once xhost allows root in.
+export QT_QPA_PLATFORM=xcb
+if [ -z "${DISPLAY:-}" ]; then
+    export DISPLAY=:0
+fi
+
+XAUTH="${XAUTHORITY:-$HOME/.Xauthority}"
+
+granted=0
+if command -v xhost >/dev/null 2>&1; then
+    if xhost "+SI:localuser:root" >/dev/null 2>&1; then
+        granted=1
+    fi
+fi
+# shellcheck disable=SC2064
+trap "[ $granted -eq 1 ] && xhost -SI:localuser:root >/dev/null 2>&1 || true" EXIT
+
+sudo --preserve-env=DISPLAY,WAYLAND_DISPLAY,XDG_RUNTIME_DIR,QT_QPA_PLATFORM \
+    env DISPLAY="$DISPLAY" XAUTHORITY="$XAUTH" QT_QPA_PLATFORM=xcb \
+    python3 chamlon.py "$@"

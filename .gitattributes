@@ -1,0 +1,14 @@
+# Shell scripts must keep LF endings: a CRLF setup.sh fails on Linux with
+# "bad interpreter" or a stray carriage return at the end of every command.
+* text=auto
+*.sh text eol=lf
+chamlon text eol=lf
+Makefile text eol=lf
+*.c text eol=lf
+*.h text eol=lf
+*.py text eol=lf
+*.md text eol=lf
+
+*.mp4 binary
+*.gif binary
+*.ttf binary
