@@ -11,6 +11,10 @@ from PyQt5.QtWidgets import (
 from PyQt5.QtCore import Qt, QTimer, QPropertyAnimation, QEasingCurve, QPoint, QParallelAnimationGroup, pyqtSignal, QProcess, QCoreApplication
 from PyQt5.QtGui import QMovie, QImage, QPixmap, QFontDatabase, QFont, QColor
 from PyQt5.QtMultimediaWidgets import QVideoWidget
+try:
+    from PyQt5 import sip
+except ImportError:  # older PyQt5 builds ship sip as a top-level module
+    import sip
 from requests import options
 
 # Every asset and the client binary are found relative to this file, not to
@@ -29,6 +33,13 @@ class AnimatedStackedWidget(QStackedWidget):
         super().__init__(parent)
         self.duration = 250
         self.easing = QEasingCurve.OutCubic
+        self._animating = False
+
+    def stop_animation(self):
+        """Stop a slide in progress, so nothing fires during teardown."""
+        group = getattr(self, "_group", None)
+        if group is not None and not sip.isdeleted(group):
+            group.stop()
         self._animating = False
 
     def slide_to_index(self, index, direction="left"):
@@ -67,13 +78,21 @@ class AnimatedStackedWidget(QStackedWidget):
         anim_in.setEndValue(QPoint(0, 0))
         anim_in.setEasingCurve(self.easing)
 
-        self._group = QParallelAnimationGroup()
+        # Parented to this widget on purpose. An unparented group outlives the
+        # window: close the app mid-slide and it goes on running, then fires
+        # finished into widgets Qt has already destroyed.
+        self._group = QParallelAnimationGroup(self)
         self._group.addAnimation(anim_out)
         self._group.addAnimation(anim_in)
 
         self._animating = True
 
         def on_finished():
+            # finished can arrive after the window has gone. Touching a
+            # destroyed widget raises RuntimeError, and an exception raised
+            # inside a slot is what PyQt5 turns into an abort().
+            if sip.isdeleted(self) or sip.isdeleted(current_widget):
+                return
             self.setCurrentIndex(index)
             current_widget.move(0, 0)
             self._animating = False
@@ -1518,6 +1537,9 @@ class MainWindow(QMainWindow):
         return port.isdigit() and 1 <= int(port) <= 65535
 
     def closeEvent(self, event):
+        # Before anything is torn down: a slide still running would fire its
+        # finished callback into widgets that no longer exist.
+        self.pages.stop_animation()
         if hasattr(self, "process") and self.process.state() == QProcess.Running:
             pkexec_pid = self.process.processId()
             for pid in self._get_child_pids(pkexec_pid):
